@@ -36,8 +36,38 @@ function setup() {
       must_change_password: true, scope_workshop_ids: ['*'], active: true, failed_logins: 0 });
     p.deleteProperty('ADMIN_INITIAL_PASSWORD');
     if (generated) console.log('ผู้ใช้: admin  รหัสผ่านชั่วคราว: ' + adminPw + '  (ระบบจะให้เปลี่ยนเมื่อเข้าสู่ระบบครั้งแรก — ข้อความนี้จะไม่แสดงอีก)');
+  } else {
+    console.log('มีบัญชี admin อยู่แล้ว — ถ้าลืมรหัส ให้รัน resetAdminPassword()');
   }
   console.log('Setup complete. Database: ' + p.getProperty('DB_SPREADSHEET_ID'));
+  return true;
+}
+
+function randomTempPassword_() {
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  var pw = 'Cps';
+  for (var i = 0; i < 9; i++) pw += chars.charAt(Math.floor(Math.random() * chars.length));
+  return pw + String(Math.floor(Math.random() * 90) + 10);
+}
+
+/**
+ * Recovery: run from the editor (owner only). Sets a new one-time password for user "admin",
+ * unlocks the account, forces a password change and signs out existing sessions.
+ */
+function resetAdminPassword() {
+  var u = Db.findOne('users', function (x) { return x.username === 'admin'; });
+  if (!u) throw new Error('ไม่พบผู้ใช้ admin — ให้รัน setup() ก่อน');
+  var pw = randomTempPassword_();
+  var salt = uuid_();
+  Db.update('users', u.id, { password_salt: salt, password_hash: hashPassword_(pw, salt), must_change_password: true,
+    active: true, failed_logins: 0, locked_until: null });
+  var cache = CacheService.getScriptCache();
+  Db.find('sessions', function (s) { return s.user_id === u.id; }).forEach(function (s) {
+    Db.update('sessions', s.id, { expires_at: nowIso_() });
+    cache.remove('sess_' + s.token_hash);
+  });
+  logAction_(u.id, 'RESET_ADMIN_PASSWORD', 'users', u.id, null, null, 'editor');
+  console.log('ผู้ใช้: admin  รหัสผ่านชั่วคราว: ' + pw + '  (ใช้ได้ครั้งเดียว ระบบจะให้เปลี่ยนทันทีหลังเข้าสู่ระบบ)');
   return true;
 }
 
