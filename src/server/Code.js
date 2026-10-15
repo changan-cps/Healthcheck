@@ -6,7 +6,9 @@ function doGet(e) {
   t.appVersion = APP_VERSION;
   var out = t.evaluate()
     .setTitle(APP_NAME)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
+    // allow embedding in the company CPS System page (iframe); the app has its own login
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   // PNG only (Apps Script rejects SVG). Never let the icon break page load.
   try { out.setFaviconUrl(APP_ICON_URL); } catch (err) { console.warn('favicon: ' + err); }
   return out;
