@@ -3343,7 +3343,8 @@ var MIGRATIONS = [
 /**
  * Setup & migrations — run from the Apps Script editor by the deploying account.
  *
- * 1) Project Settings → Script Properties: ADMIN_INITIAL_PASSWORD = <temporary password>
+ * 1) (optional) Script Property ADMIN_INITIAL_PASSWORD = <temporary password>;
+ *    if not set, setup() generates one and prints it once in the execution log
  * 2) Run setup()   (creates the private database spreadsheet + evidence folder)
  * 3) Run migrate() after every code update (idempotent)
  */
@@ -3362,12 +3363,21 @@ function setup() {
   seedReferenceData_();
   var adminPw = p.getProperty('ADMIN_INITIAL_PASSWORD');
   if (!Db.findOne('users', function (u) { return u.role === 'ADMIN'; })) {
-    if (!adminPw) throw new Error('ตั้ง Script Property ADMIN_INITIAL_PASSWORD ก่อนรัน setup()');
+    var generated = false;
+    if (!adminPw) {
+      // no property set: generate a one-time password and show it only in this execution log
+      var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+      adminPw = 'Cps';
+      for (var i = 0; i < 9; i++) adminPw += chars.charAt(Math.floor(Math.random() * chars.length));
+      adminPw += String(Math.floor(Math.random() * 90) + 10);
+      generated = true;
+    }
     validatePassword_(adminPw);
     var salt = uuid_();
     Db.insert('users', { username: 'admin', display_name: 'Administrator', role: 'ADMIN', password_salt: salt, password_hash: hashPassword_(adminPw, salt),
       must_change_password: true, scope_workshop_ids: ['*'], active: true, failed_logins: 0 });
     p.deleteProperty('ADMIN_INITIAL_PASSWORD');
+    if (generated) console.log('ผู้ใช้: admin  รหัสผ่านชั่วคราว: ' + adminPw + '  (ระบบจะให้เปลี่ยนเมื่อเข้าสู่ระบบครั้งแรก — ข้อความนี้จะไม่แสดงอีก)');
   }
   console.log('Setup complete. Database: ' + p.getProperty('DB_SPREADSHEET_ID'));
   return true;

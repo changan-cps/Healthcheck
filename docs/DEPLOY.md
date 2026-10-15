@@ -24,8 +24,7 @@ npm run push                           # build → dist/ → clasp push
 
 ## 3. ตั้งค่าครั้งแรก
 
-1. ใน Apps Script ไปที่ Project Settings → Script Properties → Add property
-   - `ADMIN_INITIAL_PASSWORD` = รหัสชั่วคราว ยาวอย่างน้อย 8 ตัว และมีทั้งตัวอักษรและตัวเลข
+1. (ไม่บังคับ) ใน Apps Script ไปที่ Project Settings → Script Properties → เพิ่ม `ADMIN_INITIAL_PASSWORD` = รหัสชั่วคราว (≥ 8 ตัว มีตัวอักษรและตัวเลข) — ถ้าไม่ตั้ง `setup()` จะสุ่มรหัสให้และแสดงครั้งเดียวในบันทึกการดำเนินการ (Execution log)
 2. เปิดไฟล์ `Setup.gs` เลือกฟังก์ชัน `setup` แล้วกด Run และอนุญาตสิทธิ์ (Sheets, Drive, External request) ระบบจะ:
    - สร้าง Google Sheet ฐานข้อมูล **(ห้ามแชร์)** และโฟลเดอร์หลักฐาน **(ส่วนตัว)**
    - สร้างตาราง ชุดมาตรฐาน และ Workshop BS/PS/GA/PT/VI/KD
