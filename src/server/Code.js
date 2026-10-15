@@ -6,8 +6,7 @@ function doGet(e) {
   t.appVersion = APP_VERSION;
   return t.evaluate()
     .setTitle(APP_NAME)
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
-    .setFaviconUrl('https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsoutlined/fact_check/default/48px.svg');
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
 }
 
 /** HTML partial include for templates. */
