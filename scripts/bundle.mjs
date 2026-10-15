@@ -15,7 +15,8 @@ const out = path.join(root, 'bundle');
 fs.mkdirSync(out, { recursive: true });
 const parts = [];
 for (const dir of ['src/shared', 'src/server']) {
-  for (const f of fs.readdirSync(path.join(root, dir)).filter((x) => x.endsWith('.js')).sort()) {
+  // Setup.js first so the editor's "Run" dropdown selects setup() by default
+  for (const f of fs.readdirSync(path.join(root, dir)).filter((x) => x.endsWith('.js')).sort((a, b) => (a === 'Setup.js' ? -1 : b === 'Setup.js' ? 1 : a.localeCompare(b)))) {
     parts.push('// ===== ' + dir + '/' + f + ' =====\n' + fs.readFileSync(path.join(root, dir, f), 'utf8'));
   }
 }
