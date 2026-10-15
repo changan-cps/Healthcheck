@@ -18,3 +18,6 @@ evidence/
 *.mp3
 *.mp4
 *.pdf
+
+# app icons + launcher (docs/ is served by GitHub Pages)
+!docs/icons/*.png

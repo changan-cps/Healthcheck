@@ -22,7 +22,7 @@ for (const dir of ['src/shared', 'src/server']) {
 }
 let code = parts.join('\n\n');
 // the bundled index.html has no template includes → serve it as plain HTML
-code = code.replace("var t = HtmlService.createTemplateFromFile('index');\n  t.appVersion = APP_VERSION;\n  return t.evaluate()", "return HtmlService.createHtmlOutputFromFile('index')");
+code = code.replace("var t = HtmlService.createTemplateFromFile('index');\n  t.appVersion = APP_VERSION;\n  var out = t.evaluate()", "var out = HtmlService.createHtmlOutputFromFile('index')");
 if (!code.includes("createHtmlOutputFromFile('index')")) throw new Error('doGet patch failed');
 fs.writeFileSync(path.join(out, 'Code.gs'), '/* CPS AI Audit — generated bundle. Source: https://github.com/changan-cps/healthcheck (do not edit here) */\n' + code);
 const page = fs.readFileSync(path.join(root, 'dist-preview/index.html'), 'utf8');

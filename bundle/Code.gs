@@ -2474,10 +2474,15 @@ function trimForLog_(o) {
  * Web app entry point and admin settings APIs.
  */
 function doGet(e) {
-  return HtmlService.createHtmlOutputFromFile('index')
+  var out = HtmlService.createHtmlOutputFromFile('index')
     .setTitle(APP_NAME)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
+  // PNG only (Apps Script rejects SVG). Never let the icon break page load.
+  try { out.setFaviconUrl(APP_ICON_URL); } catch (err) { console.warn('favicon: ' + err); }
+  return out;
 }
+
+var APP_ICON_URL = 'https://changan-cps.github.io/Healthcheck/icons/icon-192.png';
 
 /** HTML partial include for templates. */
 function include(name) { return HtmlService.createHtmlOutputFromFile(name).getContent(); }

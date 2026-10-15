@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CPS AI Audit</title>
+<meta name="theme-color" content="#0B2A5B">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="CPS Audit">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<script>
+  // Web app URL (Apps Script deployment). Change here if the deployment is replaced.
+  var APP_URL = 'https://script.google.com/macros/s/AKfycby59CkvDDAcfDGdD9jvs-xHlap_QWbMY5aA3NXMd0ObXNHxJ3lPePudp_uLeLHbgGn5/exec';
+  var standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  // Opened from the home-screen icon → go straight to the app
+  if (/[?&]launch=1/.test(location.search) || standalone) location.replace(APP_URL);
+</script>
+<style>
+  :root{--navy:#0B2A5B;--blue:#1F5FBF;--ink:#1B2537;--muted:#5A667A;--bg:#F3F5F9;--card:#fff;--line:#D5DCE6}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--ink:#E6EBF2;--muted:#A7B2C3;--bg:#0E1626;--card:#16213A;--line:#2A3755}}
+  :root[data-theme="dark"]{--ink:#E6EBF2;--muted:#A7B2C3;--bg:#0E1626;--card:#16213A;--line:#2A3755}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Sarabun","Noto Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);line-height:1.55}
+  header{background:var(--navy);color:#fff;padding:32px 16px 72px;text-align:center}
+  header img{width:88px;height:88px;border-radius:20px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+  header h1{margin:12px 0 2px;font-size:1.5rem}
+  header p{margin:0;opacity:.85;font-size:.95rem}
+  main{max-width:520px;margin:-48px auto 32px;padding:0 16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:14px}
+  .btn{display:block;width:100%;text-align:center;background:var(--blue);color:#fff;text-decoration:none;font-weight:600;padding:14px;border-radius:10px;font-size:1.05rem;border:0;cursor:pointer;font-family:inherit}
+  h2{font-size:1.05rem;margin:0 0 10px}
+  ol{margin:0;padding-left:1.3rem} li{margin:4px 0}
+  .muted{color:var(--muted);font-size:.9rem}
+  .os{display:none} .os.show{display:block}
+  #install{margin-top:10px;background:var(--navy)}
+</style>
+</head>
+<body>
+<header>
+  <img src="icons/icon-192.png" alt="">
+  <h1>CPS AI Audit</h1>
+  <p>ระบบตรวจประเมิน CPS Health Check / KUP</p>
+</header>
+<main>
+  <div class="card">
+    <a class="btn" id="open" href="#">เปิดระบบ</a>
+    <button class="btn" id="install" hidden>ติดตั้งไอคอนบนหน้าจอ</button>
+  </div>
+
+  <div class="card os" id="ios">
+    <h2>ติดตั้งบน iPhone / iPad</h2>
+    <ol>
+      <li>เปิดหน้านี้ด้วย <b>Safari</b></li>
+      <li>แตะปุ่ม <b>แชร์</b> (สี่เหลี่ยมมีลูกศรชี้ขึ้น)</li>
+      <li>เลือก <b>เพิ่มไปยังหน้าจอโฮม</b> แล้วแตะ <b>เพิ่ม</b></li>
+    </ol>
+  </div>
+
+  <div class="card os" id="android">
+    <h2>ติดตั้งบน Android</h2>
+    <ol>
+      <li>เปิดหน้านี้ด้วย <b>Chrome</b></li>
+      <li>แตะ <b>⋮</b> มุมขวาบน</li>
+      <li>เลือก <b>ติดตั้งแอป</b> หรือ <b>เพิ่มลงในหน้าจอหลัก</b></li>
+    </ol>
+  </div>
+
+  <div class="card os" id="desktop">
+    <h2>ติดตั้งบนคอมพิวเตอร์</h2>
+    <ol>
+      <li>เปิดหน้านี้ด้วย Chrome หรือ Edge</li>
+      <li>กดไอคอน <b>ติดตั้ง</b> ที่ท้ายช่อง URL หรือเมนู ⋮ → <b>ติดตั้ง CPS AI Audit</b></li>
+    </ol>
+  </div>
+
+  <p class="muted">แตะไอคอนบนหน้าจอเมื่อไหร่ ระบบจะเปิดหน้าเข้าสู่ระบบให้ทันที บัญชีผู้ใช้ขอได้จากผู้ดูแลระบบ CPS</p>
+</main>
+<script>
+  document.getElementById('open').href = APP_URL;
+  var ua = navigator.userAgent;
+  var os = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document) ? 'ios' : /Android/.test(ua) ? 'android' : 'desktop';
+  document.getElementById(os).classList.add('show');
+  var deferred;
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault(); deferred = e;
+    var b = document.getElementById('install'); b.hidden = false;
+    b.onclick = function () { deferred.prompt(); deferred.userChoice.finally(function () { b.hidden = true; }); };
+  });
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
+</script>
+</body>
+</html>
