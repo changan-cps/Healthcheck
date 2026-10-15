@@ -1,0 +1,14 @@
+{
+  "name": "cps-ai-audit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CPS AI Audit — Health Check (Team/Group) & KUP audit web app on Google Apps Script",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test test/*.test.js",
+    "dev": "node scripts/build.mjs && node scripts/dev-server.mjs",
+    "push": "node scripts/build.mjs && npx @google/clasp push",
+    "deploy": "node scripts/build.mjs && npx @google/clasp push && npx @google/clasp deploy --description \"CPS AI Audit\""
+  },
+  "engines": { "node": ">=18" }
+}

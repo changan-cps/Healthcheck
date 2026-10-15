@@ -1,0 +1,12 @@
+name: test
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: node scripts/build.mjs
+      # import/flow tests need the company standard files (not in the repo) and are skipped here
+      - run: node --test test/*.test.js

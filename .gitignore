@@ -1,0 +1,20 @@
+node_modules/
+dist/
+dist-preview/
+.clasp.json
+.clasprc.json
+.env
+# company standard files and any audit evidence must never be committed
+standards-local/
+*.xlsx
+*.xls
+evidence/
+*.jpg
+*.jpeg
+*.png
+*.heic
+*.m4a
+*.webm
+*.mp3
+*.mp4
+*.pdf
