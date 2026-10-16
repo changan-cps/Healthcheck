@@ -77,7 +77,7 @@
       '<fieldset class="field span-2"><legend>ประเภทการตรวจ</legend><div class="radio-row">' + types.map(function (t) {
         var avail = md.versions.some(function (v) { return v.level === t && v.enabled_for_audit; });
         return '<label class="radio-card' + (avail ? '' : ' disabled') + '"><input type="radio" name="audit_type" value="' + t + '"' + (avail ? '' : ' disabled') + '><span><strong>' + esc(App.typeLabel[t]) + '</strong><small>' +
-          (avail ? 'มีมาตรฐานที่ประกาศใช้' : t === 'MANAGER' ? 'เตรียมโครงสร้าง — ยังไม่เปิดใช้ในรุ่นแรก' : 'ยังไม่มีมาตรฐานที่ประกาศใช้') + '</small></span></label>';
+          (avail ? 'มีมาตรฐานที่ประกาศใช้' : t === 'MANAGER' ? 'ยังไม่เปิดใช้ — Admin เปิดได้ที่เมนูมาตรฐาน' : 'ยังไม่มีมาตรฐานที่ประกาศใช้') + '</small></span></label>';
       }).join('') + '</div></fieldset>' +
       '<label class="field"><span>มาตรฐาน / เวอร์ชัน</span><select name="standard_version_id" required disabled><option value="">เลือกประเภทก่อน</option></select></label>' +
       '<label class="field"><span>เส้นทางการออดิท</span><select name="route_id"><option value="">ใช้เส้นทางแนะนำ</option></select></label></div></section>' +

@@ -3808,6 +3808,25 @@ function apiCloneVersion(token, versionId, label, effectiveDate) {
   });
 }
 
+/** Admin switch: allow/stop creating new audits from a standard set. Needs a PUBLISHED version to enable; past audits are unaffected. */
+function apiSetStandardEnabled(token, setId, enabled) {
+  return guard_(token, function (u) {
+    Permissions.assert(u, 'standard.manage');
+    return Db.transaction(function () {
+      var set = Db.get('standard_sets', setId);
+      if (!set) throw appError_('NOT_FOUND', 'ไม่พบชุดมาตรฐาน');
+      enabled = !!enabled;
+      if (enabled && !Db.find('standard_versions', function (v) { return v.standard_set_id === setId && v.status === 'PUBLISHED'; }).length)
+        throw appError_('VALIDATION', 'ต้องมีฉบับที่ประกาศใช้แล้วอย่างน้อย 1 ฉบับก่อนเปิดใช้ออดิท');
+      var patch = { enabled_for_audit: enabled };
+      if (enabled) patch.name_th = String(set.name_th).replace(/\s*—\s*เตรียมโครงสร้าง$/, '');
+      var saved = Db.update('standard_sets', setId, patch);
+      logAction_(u.id, enabled ? 'ENABLE_STANDARD_FOR_AUDIT' : 'DISABLE_STANDARD_FOR_AUDIT', 'standard_sets', setId, { enabled_for_audit: !!set.enabled_for_audit }, { enabled_for_audit: enabled }, '');
+      return { set: saved };
+    });
+  });
+}
+
 /** Permanently delete a DRAFT version (never a published/retired one, and never one an audit refers to). */
 function apiDeleteDraftVersion(token, versionId) {
   return guard_(token, function (u) {
