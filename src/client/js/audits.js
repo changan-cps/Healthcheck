@@ -162,7 +162,7 @@
       if (req.scope_mode === 'PARTIAL' && !req.criterion_ids.length) missing.push('ข้อที่จะตรวจ');
       if (missing.length) { err.textContent = 'กรอกให้ครบ: ' + missing.join(', '); err.hidden = false; return; }
       var btn = f.querySelector('button[type=submit]'); btn.disabled = true; btn.textContent = 'กำลังสร้าง…';
-      App.api('apiCreateAudit', req).then(function (r) { App.toast('สร้างรอบตรวจ ' + r.audit_no + ' แล้ว', 'ok'); location.hash = '#/audit/' + r.audit_id; },
+      App.api('apiCreateAudit', req).then(function (r) { App.toast('สร้างรอบตรวจ ' + r.audit_no + ' แล้ว', 'ok'); App.nav('#/audit/' + r.audit_id); },
         function (e) { err.textContent = App.errorText(e); err.hidden = false; btn.disabled = false; btn.textContent = 'สร้างรอบตรวจ'; });
     };
   });

@@ -119,7 +119,7 @@
         App.store.set('cps_session', { token: res.data.token, exp: Date.now() + 11 * 3600000 });
         return App.loadMaster().then(function () {
           if (res.data.user.must_change_password) return App.views.changePassword(true);
-          location.hash = location.hash || '#/'; App.render();
+          App.nav(App.hash());
         });
       }).catch(function (e) {
         err.textContent = App.errorText(e); err.hidden = false; btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ';
@@ -142,7 +142,7 @@
       App.api('apiChangePassword', f.o.value, f.n.value).then(function () {
         App.toast('เปลี่ยนรหัสผ่านแล้ว', 'ok');
         App.state.user.must_change_password = false;
-        location.hash = '#/'; App.render();
+        App.nav('#/');
       }, function (e) { err.textContent = App.errorText(e); err.hidden = false; });
     };
   };

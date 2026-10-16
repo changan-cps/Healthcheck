@@ -729,10 +729,26 @@ a.kpi:hover{background:var(--blue-50)}
   // ---------- router ----------
   var routes = [];
   App.route = function (pattern, view) { routes.push({ re: new RegExp('^' + pattern.replace(/:[a-z]+/g, '([^/]+)') + '$'), view: view }); };
-  App.go = function (hash) { if (location.hash === hash) App.render(); else location.hash = hash; };
+  // Routing keeps its own current-hash so menus work even where the host page (Apps Script sandbox iframe,
+  // company portal iframe) never delivers hashchange or blocks location.hash. location.hash is still updated when allowed.
+  var vhash = null;
+  App.hash = function () { return vhash != null ? vhash : (location.hash || '#/'); };
+  App.nav = function (h) {
+    vhash = h;
+    try { if (location.hash !== h) location.hash = h; } catch (e) { /* sandboxed: ignore */ }
+    App.render();
+  };
+  App.go = function (hash) { App.nav(hash); };
+  document.addEventListener('click', function (e) {
+    if (e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    var a = e.target.closest && e.target.closest('a[href^="#/"]');
+    if (!a) return;
+    e.preventDefault();
+    App.nav(a.getAttribute('href'));
+  });
   App.render = function () {
     if (!App.state.token) { App.views.login(); return; }
-    var h = (location.hash || '#/').slice(1) || '/';
+    var h = App.hash().slice(1) || '/';
     var q = {};
     var qi = h.indexOf('?');
     if (qi >= 0) { h.slice(qi + 1).split('&').forEach(function (kv) { var p = kv.split('='); if (p[0]) q[decodeURIComponent(p[0])] = decodeURIComponent(p[1] || ''); }); h = h.slice(0, qi); }
@@ -752,7 +768,7 @@ a.kpi:hover{background:var(--blue-50)}
     App.shell(h);
     App.$('#main').innerHTML = App.empty('ไม่พบหน้านี้', 'ลิงก์อาจไม่ถูกต้อง', '<a class="btn btn-primary" href="#/">ไปหน้าภาพรวม</a>');
   };
-  window.addEventListener('hashchange', App.render);
+  window.addEventListener('hashchange', function () { var cur = location.hash || '#/'; if (cur === vhash) return; vhash = cur; App.render(); });
 
   App.loading = function (label) { return '<div class="state state-loading" role="status"><span class="spinner" aria-hidden="true"></span>' + esc(label || 'กำลังโหลดข้อมูล…') + '</div>'; };
   App.empty = function (title, text, action) { return '<div class="state state-empty"><strong>' + esc(title) + '</strong><p>' + esc(text || '') + '</p>' + (action || '') + '</div>'; };
@@ -909,7 +925,7 @@ a.kpi:hover{background:var(--blue-50)}
         App.store.set('cps_session', { token: res.data.token, exp: Date.now() + 11 * 3600000 });
         return App.loadMaster().then(function () {
           if (res.data.user.must_change_password) return App.views.changePassword(true);
-          location.hash = location.hash || '#/'; App.render();
+          App.nav(App.hash());
         });
       }).catch(function (e) {
         err.textContent = App.errorText(e); err.hidden = false; btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ';
@@ -932,7 +948,7 @@ a.kpi:hover{background:var(--blue-50)}
       App.api('apiChangePassword', f.o.value, f.n.value).then(function () {
         App.toast('เปลี่ยนรหัสผ่านแล้ว', 'ok');
         App.state.user.must_change_password = false;
-        location.hash = '#/'; App.render();
+        App.nav('#/');
       }, function (e) { err.textContent = App.errorText(e); err.hidden = false; });
     };
   };
@@ -1054,7 +1070,7 @@ a.kpi:hover{background:var(--blue-50)}
       ev.preventDefault();
       var o = {}; ['from', 'to', 'quarter', 'workshop_id', 'group_id', 'team_id', 'audit_type', 'kup_dimension'].forEach(function (k) { if (form[k].value && !form[k].disabled) o[k] = form[k].value; });
       if (form.include_demo.checked) o.include_demo = '1';
-      location.hash = '#/?' + qs(o);
+      App.nav('#/?' + qs(o));
     };
     form.audit_type.onchange = function () { form.kup_dimension.disabled = form.audit_type.value !== 'KUP'; };
     var load = function () {
@@ -1291,7 +1307,7 @@ a.kpi:hover{background:var(--blue-50)}
       if (req.scope_mode === 'PARTIAL' && !req.criterion_ids.length) missing.push('ข้อที่จะตรวจ');
       if (missing.length) { err.textContent = 'กรอกให้ครบ: ' + missing.join(', '); err.hidden = false; return; }
       var btn = f.querySelector('button[type=submit]'); btn.disabled = true; btn.textContent = 'กำลังสร้าง…';
-      App.api('apiCreateAudit', req).then(function (r) { App.toast('สร้างรอบตรวจ ' + r.audit_no + ' แล้ว', 'ok'); location.hash = '#/audit/' + r.audit_id; },
+      App.api('apiCreateAudit', req).then(function (r) { App.toast('สร้างรอบตรวจ ' + r.audit_no + ' แล้ว', 'ok'); App.nav('#/audit/' + r.audit_id); },
         function (e) { err.textContent = App.errorText(e); err.hidden = false; btn.disabled = false; btn.textContent = 'สร้างรอบตรวจ'; });
     };
   });
@@ -2391,7 +2407,7 @@ a.kpi:hover{background:var(--blue-50)}
   }
 
   window.addEventListener('beforeunload', function (e) {
-    if (W.data && Object.keys(W.drafts).length && location.hash.indexOf('#/audit/') === 0) { flushAll(); e.preventDefault(); e.returnValue = ''; }
+    if (W.data && Object.keys(W.drafts).length && App.hash().indexOf('#/audit/') === 0) { flushAll(); e.preventDefault(); e.returnValue = ''; }
   });
   document.addEventListener('visibilitychange', function () { if (document.hidden && W.data) flushAll(); });
 })();
@@ -2555,7 +2571,7 @@ a.kpi:hover{background:var(--blue-50)}
       '<label class="search"><span class="sr-only">ค้นหา</span><input id="is-search" type="search" placeholder="ค้นหา Issue ID ข้อกำหนด ผู้รับผิดชอบ"></label><button class="btn btn-ghost" id="is-exp">' + App.icon('download') + 'Excel</button></div><div id="is-list">' + App.loading() + '</div>';
     var filters = {}; ['status', 'workshop_id', 'audit_type', 'dimension_code', 'from', 'to', 'audit_id'].forEach(function (k) { if (q[k]) filters[k] = q[k]; });
     if (q.include_demo === '1') filters.include_demo = true;
-    App.$('#is-ws').onchange = function () { var nq = Object.assign({}, q, { workshop_id: this.value }); if (!this.value) delete nq.workshop_id; location.hash = '#/issues?' + Object.keys(nq).map(function (k) { return k + '=' + encodeURIComponent(nq[k]); }).join('&'); };
+    App.$('#is-ws').onchange = function () { var nq = Object.assign({}, q, { workshop_id: this.value }); if (!this.value) delete nq.workshop_id; App.nav('#/issues?' + Object.keys(nq).map(function (k) { return k + '=' + encodeURIComponent(nq[k]); }).join('&')); };
     App.$('#is-exp').onclick = function () { var b = this; b.disabled = true; App.api('apiExportFindingsExcel', filters).then(App.download, App.fail).then(function () { b.disabled = false; }); };
     App.api('apiListFindings', filters).then(function (list) {
       var draw = function (t) {
@@ -2667,7 +2683,7 @@ a.kpi:hover{background:var(--blue-50)}
         App.$('#imp-status').innerHTML = App.loading('กำลังอ่านไฟล์ ' + file.name + '…');
         var r = new FileReader();
         r.onload = function () {
-          App.api('apiParseStandardFile', file.name, String(r.result).split(',')[1]).then(function (res) { App.state.importPreview = res; location.hash = '#/standards/import'; },
+          App.api('apiParseStandardFile', file.name, String(r.result).split(',')[1]).then(function (res) { App.state.importPreview = res; App.nav('#/standards/import'); },
             function (e) { App.$('#imp-status').innerHTML = App.errorBox(e); });
         };
         r.readAsDataURL(file);
@@ -2679,7 +2695,7 @@ a.kpi:hover{background:var(--blue-50)}
   App.route('/standards/import', function () {
     App.setTitle('ตรวจทานข้อมูลนำเข้า');
     var res = App.state.importPreview;
-    if (!res) { location.hash = '#/standards'; return; }
+    if (!res) { App.nav('#/standards'); return; }
     var p = res.preview;
     var cands = p.sheets.filter(function (s) { return s.candidate; });
     var h = '<div class="page-head"><div><a class="link-btn" href="#/standards">' + App.icon('chevl') + 'คลังมาตรฐาน</a><h2 class="h-lg">' + esc(p.file_name) + '</h2><p class="muted">SHA-256 ' + esc(String(res.file_hash).slice(0, 16)) + '… • ตัวอ่าน ' + esc(p.parser_version) + '</p></div></div>';
@@ -2720,7 +2736,7 @@ a.kpi:hover{background:var(--blue-50)}
       var sel = App.$('input[name=sheet]:checked', f);
       if (!sel || !f.label.value || !f.eff.value) { err.textContent = 'เลือกชีต และกรอกชื่อเวอร์ชันกับวันที่มีผล'; err.hidden = false; return; }
       App.api('apiCreateDraftVersion', { import_file_id: res.import_file_id, sheet_index: Number(sel.value), version_label: f.label.value, effective_date: f.eff.value, acknowledge_similar: f.ack.checked })
-        .then(function (r) { App.toast('สร้างฉบับร่างแล้ว — ตรวจทานก่อนประกาศใช้', 'ok'); location.hash = '#/standard/' + r.version_id; }, function (e) { err.textContent = App.errorText(e); err.hidden = false; });
+        .then(function (r) { App.toast('สร้างฉบับร่างแล้ว — ตรวจทานก่อนประกาศใช้', 'ok'); App.nav('#/standard/' + r.version_id); }, function (e) { err.textContent = App.errorText(e); err.hidden = false; });
     };
   });
 
@@ -2833,7 +2849,7 @@ a.kpi:hover{background:var(--blue-50)}
     var pub = App.$('#v-publish');
     if (pub) pub.onclick = function () { App.confirm('ประกาศใช้ ' + v.version_label, 'หลังประกาศใช้จะแก้ไขไม่ได้ ฉบับที่ใช้อยู่เดิมของชุดนี้จะเปลี่ยนเป็น "เลิกใช้" (รอบตรวจเดิมไม่เปลี่ยน)', 'ประกาศใช้').then(function (ok) { if (ok) App.api('apiPublishVersion', v.id, v.version).then(function (r) { App.toast('ประกาศใช้แล้ว', 'ok'); App.loadMaster().then(reload); }, App.fail); }); };
     var cl = App.$('#v-clone');
-    if (cl) cl.onclick = function () { App.ask('สร้างฉบับใหม่จาก ' + v.version_label, 'ชื่อเวอร์ชันใหม่', { ok: 'สร้างฉบับร่าง' }).then(function (label) { if (label) App.api('apiCloneVersion', v.id, label, App.today()).then(function (r) { location.hash = '#/standard/' + r.version_id; }, App.fail); }); };
+    if (cl) cl.onclick = function () { App.ask('สร้างฉบับใหม่จาก ' + v.version_label, 'ชื่อเวอร์ชันใหม่', { ok: 'สร้างฉบับร่าง' }).then(function (label) { if (label) App.api('apiCloneVersion', v.id, label, App.today()).then(function (r) { App.nav('#/standard/' + r.version_id); }, App.fail); }); };
     var sf = App.$('#v-set');
     if (sf && edit) sf.onsubmit = function (ev) {
       ev.preventDefault();

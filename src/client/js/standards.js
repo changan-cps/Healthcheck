@@ -24,7 +24,7 @@
         App.$('#imp-status').innerHTML = App.loading('กำลังอ่านไฟล์ ' + file.name + '…');
         var r = new FileReader();
         r.onload = function () {
-          App.api('apiParseStandardFile', file.name, String(r.result).split(',')[1]).then(function (res) { App.state.importPreview = res; location.hash = '#/standards/import'; },
+          App.api('apiParseStandardFile', file.name, String(r.result).split(',')[1]).then(function (res) { App.state.importPreview = res; App.nav('#/standards/import'); },
             function (e) { App.$('#imp-status').innerHTML = App.errorBox(e); });
         };
         r.readAsDataURL(file);
@@ -36,7 +36,7 @@
   App.route('/standards/import', function () {
     App.setTitle('ตรวจทานข้อมูลนำเข้า');
     var res = App.state.importPreview;
-    if (!res) { location.hash = '#/standards'; return; }
+    if (!res) { App.nav('#/standards'); return; }
     var p = res.preview;
     var cands = p.sheets.filter(function (s) { return s.candidate; });
     var h = '<div class="page-head"><div><a class="link-btn" href="#/standards">' + App.icon('chevl') + 'คลังมาตรฐาน</a><h2 class="h-lg">' + esc(p.file_name) + '</h2><p class="muted">SHA-256 ' + esc(String(res.file_hash).slice(0, 16)) + '… • ตัวอ่าน ' + esc(p.parser_version) + '</p></div></div>';
@@ -77,7 +77,7 @@
       var sel = App.$('input[name=sheet]:checked', f);
       if (!sel || !f.label.value || !f.eff.value) { err.textContent = 'เลือกชีต และกรอกชื่อเวอร์ชันกับวันที่มีผล'; err.hidden = false; return; }
       App.api('apiCreateDraftVersion', { import_file_id: res.import_file_id, sheet_index: Number(sel.value), version_label: f.label.value, effective_date: f.eff.value, acknowledge_similar: f.ack.checked })
-        .then(function (r) { App.toast('สร้างฉบับร่างแล้ว — ตรวจทานก่อนประกาศใช้', 'ok'); location.hash = '#/standard/' + r.version_id; }, function (e) { err.textContent = App.errorText(e); err.hidden = false; });
+        .then(function (r) { App.toast('สร้างฉบับร่างแล้ว — ตรวจทานก่อนประกาศใช้', 'ok'); App.nav('#/standard/' + r.version_id); }, function (e) { err.textContent = App.errorText(e); err.hidden = false; });
     };
   });
 
@@ -190,7 +190,7 @@
     var pub = App.$('#v-publish');
     if (pub) pub.onclick = function () { App.confirm('ประกาศใช้ ' + v.version_label, 'หลังประกาศใช้จะแก้ไขไม่ได้ ฉบับที่ใช้อยู่เดิมของชุดนี้จะเปลี่ยนเป็น "เลิกใช้" (รอบตรวจเดิมไม่เปลี่ยน)', 'ประกาศใช้').then(function (ok) { if (ok) App.api('apiPublishVersion', v.id, v.version).then(function (r) { App.toast('ประกาศใช้แล้ว', 'ok'); App.loadMaster().then(reload); }, App.fail); }); };
     var cl = App.$('#v-clone');
-    if (cl) cl.onclick = function () { App.ask('สร้างฉบับใหม่จาก ' + v.version_label, 'ชื่อเวอร์ชันใหม่', { ok: 'สร้างฉบับร่าง' }).then(function (label) { if (label) App.api('apiCloneVersion', v.id, label, App.today()).then(function (r) { location.hash = '#/standard/' + r.version_id; }, App.fail); }); };
+    if (cl) cl.onclick = function () { App.ask('สร้างฉบับใหม่จาก ' + v.version_label, 'ชื่อเวอร์ชันใหม่', { ok: 'สร้างฉบับร่าง' }).then(function (label) { if (label) App.api('apiCloneVersion', v.id, label, App.today()).then(function (r) { App.nav('#/standard/' + r.version_id); }, App.fail); }); };
     var sf = App.$('#v-set');
     if (sf && edit) sf.onsubmit = function (ev) {
       ev.preventDefault();
