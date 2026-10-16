@@ -14,10 +14,20 @@
       sets.forEach(function (s) {
         h += '<section class="panel"><header class="panel-h"><h2>' + esc(s.name_th) + '</h2><span class="muted">' + esc(s.name_zh) + ' • ' + (s.scoring_mode === 'BAND' ? 'ช่วงคะแนน' : 'หักคะแนนตามเกณฑ์') + (s.enabled_for_audit ? '' : ' • <span class="t-warn">ยังไม่เปิดใช้ออดิท</span>') + '</span></header>' +
           (s.versions.length ? '<ul class="row-list">' + s.versions.map(function (v) {
-            return '<li><a href="#/standard/' + v.id + '"><span class="rl-main"><strong>' + esc(v.version_label) + '</strong> มีผล ' + esc(v.effective_date) + '</span><span class="rl-meta">' + esc(v.source_file_name) + ' / ' + esc(v.source_sheet_name) + ' ' + App.chip(v.status) + '</span></a></li>';
+            return '<li><a href="#/standard/' + v.id + '"><span class="rl-main"><strong>' + esc(v.version_label) + '</strong> มีผล ' + esc(v.effective_date) + '</span><span class="rl-meta">' + esc(v.source_file_name) + ' / ' + esc(v.source_sheet_name) + ' ' + App.chip(v.status) + '</span></a>' +
+              (v.status === 'DRAFT' && App.can('admin') ? '<button class="btn btn-sm btn-danger" data-del="' + v.id + '" data-label="' + esc(v.version_label) + '" aria-label="ลบฉบับร่าง ' + esc(v.version_label) + '">' + App.icon('trash') + 'ลบฉบับร่าง</button>' : '') + '</li>';
           }).join('') + '</ul>' : App.empty('ยังไม่มีเวอร์ชัน', App.can('admin') ? 'นำเข้าจากไฟล์ Excel มาตรฐาน' : '')) + '</section>';
       });
       App.$('#main').innerHTML = h;
+      App.$$('[data-del]').forEach(function (btn) {
+        btn.onclick = function () {
+          App.confirm('ลบฉบับร่าง ' + btn.getAttribute('data-label'), 'ลบถาวร กู้คืนไม่ได้ (ใช้ได้เฉพาะฉบับร่างที่ยังไม่มีรอบตรวจอ้างอิง)', 'ลบฉบับร่าง', 'danger').then(function (ok) {
+            if (!ok) return;
+            btn.disabled = true;
+            App.api('apiDeleteDraftVersion', btn.getAttribute('data-del')).then(function () { App.toast('ลบฉบับร่างแล้ว', 'ok'); App.render(); }, function (e) { btn.disabled = false; App.fail(e); });
+          });
+        };
+      });
       var inp = App.$('#std-file');
       if (inp) inp.onchange = function () {
         var file = inp.files[0]; if (!file) return;
