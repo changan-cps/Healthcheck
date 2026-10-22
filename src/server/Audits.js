@@ -72,6 +72,19 @@ function apiCreateAudit(token, req) {
     var set = Db.get('standard_sets', v.standard_set_id);
     if (!set.enabled_for_audit) throw appError_('VALIDATION', 'มาตรฐานระดับนี้ยังไม่เปิดใช้สำหรับการออดิทในรุ่นนี้');
     if (set.level !== req.audit_type) throw appError_('VALIDATION', 'ประเภทการตรวจไม่ตรงกับมาตรฐานที่เลือก');
+    // Free-typed Group/Team: reuse an existing record with the same name, otherwise create it (so dashboards and issues still group by unit)
+    var gname = String(req.group_name || '').trim(), tname = String(req.team_name || '').trim();
+    var sameName = function (a, b) { return String(a).trim().toLowerCase() === String(b).trim().toLowerCase(); };
+    if (!req.group_id && gname && req.audit_type !== 'KUP') {
+      var eg = Db.find('groups', function (x) { return x.workshop_id === ws.id && sameName(x.name, gname); })[0];
+      req.group_id = (eg || Db.insert('groups', { workshop_id: ws.id, code: gname, name: gname, leader_name: '', active: true, is_demo: false })).id;
+      if (!eg) logAction_(u.id, 'CREATE_groups', 'groups', req.group_id, null, { name: gname, via: 'audit_create' }, '');
+    }
+    if (!req.team_id && tname && req.audit_type === 'TEAM') {
+      var et = Db.find('teams', function (x) { return x.workshop_id === ws.id && (!req.group_id || x.group_id === req.group_id) && sameName(x.name, tname); })[0];
+      req.team_id = (et || Db.insert('teams', { workshop_id: ws.id, group_id: req.group_id || '', code: tname, name: tname, leader_name: String(req.auditee_name || ''), active: true, is_demo: false })).id;
+      if (!et) logAction_(u.id, 'CREATE_teams', 'teams', req.team_id, null, { name: tname, via: 'audit_create' }, '');
+    }
     if ((req.audit_type === 'TEAM') && !req.team_id) throw appError_('VALIDATION', 'การตรวจระดับทีมต้องเลือก Team');
     if ((req.audit_type === 'GROUP') && !req.group_id) throw appError_('VALIDATION', 'การตรวจระดับกลุ่มต้องเลือก Group');
     if (req.group_id) { var g = Db.get('groups', req.group_id); if (!g || g.workshop_id !== ws.id) throw appError_('VALIDATION', 'Group ไม่อยู่ใน Workshop นี้'); }

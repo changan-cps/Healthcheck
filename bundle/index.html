@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <base target="_top">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0B2A5B">
@@ -140,6 +139,7 @@ fieldset[disabled] .radio-pill span{opacity:.7}
 .row-list{list-style:none;margin:0;padding:0}
 .row-list>li{border-top:1px solid var(--line-2)} .row-list>li:first-child{border-top:0}
 .row-list a{display:flex;justify-content:space-between;gap:.5rem 1rem;flex-wrap:wrap;padding:.7rem .25rem;text-decoration:none;color:var(--ink);min-height:44px}
+.row-list>li{display:flex;align-items:center;gap:.5rem} .row-list>li>a{flex:1;min-width:0} .row-list>li>.btn{flex:none;margin:.25rem 0}
 .row-list a:hover{background:var(--blue-50)}
 .rl-meta{color:var(--muted);font-size:var(--fs-sm);display:flex;gap:.4rem;align-items:center}
 .facts{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:.5rem 1rem;margin:.5rem 0 1rem}
@@ -730,10 +730,26 @@ a.kpi:hover{background:var(--blue-50)}
   // ---------- router ----------
   var routes = [];
   App.route = function (pattern, view) { routes.push({ re: new RegExp('^' + pattern.replace(/:[a-z]+/g, '([^/]+)') + '$'), view: view }); };
-  App.go = function (hash) { if (location.hash === hash) App.render(); else location.hash = hash; };
+  // Routing keeps its own current-hash so menus work even where the host page (Apps Script sandbox iframe,
+  // company portal iframe) never delivers hashchange or blocks location.hash. location.hash is still updated when allowed.
+  var vhash = null;
+  App.hash = function () { return vhash != null ? vhash : (location.hash || '#/'); };
+  App.nav = function (h) {
+    vhash = h;
+    try { if (location.hash !== h) location.hash = h; } catch (e) { /* sandboxed: ignore */ }
+    App.render();
+  };
+  App.go = function (hash) { App.nav(hash); };
+  document.addEventListener('click', function (e) {
+    if (e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    var a = e.target.closest && e.target.closest('a[href^="#/"]');
+    if (!a) return;
+    e.preventDefault();
+    App.nav(a.getAttribute('href'));
+  });
   App.render = function () {
     if (!App.state.token) { App.views.login(); return; }
-    var h = (location.hash || '#/').slice(1) || '/';
+    var h = App.hash().slice(1) || '/';
     var q = {};
     var qi = h.indexOf('?');
     if (qi >= 0) { h.slice(qi + 1).split('&').forEach(function (kv) { var p = kv.split('='); if (p[0]) q[decodeURIComponent(p[0])] = decodeURIComponent(p[1] || ''); }); h = h.slice(0, qi); }
@@ -753,7 +769,7 @@ a.kpi:hover{background:var(--blue-50)}
     App.shell(h);
     App.$('#main').innerHTML = App.empty('ไม่พบหน้านี้', 'ลิงก์อาจไม่ถูกต้อง', '<a class="btn btn-primary" href="#/">ไปหน้าภาพรวม</a>');
   };
-  window.addEventListener('hashchange', App.render);
+  window.addEventListener('hashchange', function () { var cur = location.hash || '#/'; if (cur === vhash) return; vhash = cur; App.render(); });
 
   App.loading = function (label) { return '<div class="state state-loading" role="status"><span class="spinner" aria-hidden="true"></span>' + esc(label || 'กำลังโหลดข้อมูล…') + '</div>'; };
   App.empty = function (title, text, action) { return '<div class="state state-empty"><strong>' + esc(title) + '</strong><p>' + esc(text || '') + '</p>' + (action || '') + '</div>'; };
@@ -910,7 +926,7 @@ a.kpi:hover{background:var(--blue-50)}
         App.store.set('cps_session', { token: res.data.token, exp: Date.now() + 11 * 3600000 });
         return App.loadMaster().then(function () {
           if (res.data.user.must_change_password) return App.views.changePassword(true);
-          location.hash = location.hash || '#/'; App.render();
+          App.nav(App.hash());
         });
       }).catch(function (e) {
         err.textContent = App.errorText(e); err.hidden = false; btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ';
@@ -933,7 +949,7 @@ a.kpi:hover{background:var(--blue-50)}
       App.api('apiChangePassword', f.o.value, f.n.value).then(function () {
         App.toast('เปลี่ยนรหัสผ่านแล้ว', 'ok');
         App.state.user.must_change_password = false;
-        location.hash = '#/'; App.render();
+        App.nav('#/');
       }, function (e) { err.textContent = App.errorText(e); err.hidden = false; });
     };
   };
@@ -1055,7 +1071,7 @@ a.kpi:hover{background:var(--blue-50)}
       ev.preventDefault();
       var o = {}; ['from', 'to', 'quarter', 'workshop_id', 'group_id', 'team_id', 'audit_type', 'kup_dimension'].forEach(function (k) { if (form[k].value && !form[k].disabled) o[k] = form[k].value; });
       if (form.include_demo.checked) o.include_demo = '1';
-      location.hash = '#/?' + qs(o);
+      App.nav('#/?' + qs(o));
     };
     form.audit_type.onchange = function () { form.kup_dimension.disabled = form.audit_type.value !== 'KUP'; };
     var load = function () {
@@ -1207,14 +1223,14 @@ a.kpi:hover{background:var(--blue-50)}
       '<fieldset class="field span-2"><legend>ประเภทการตรวจ</legend><div class="radio-row">' + types.map(function (t) {
         var avail = md.versions.some(function (v) { return v.level === t && v.enabled_for_audit; });
         return '<label class="radio-card' + (avail ? '' : ' disabled') + '"><input type="radio" name="audit_type" value="' + t + '"' + (avail ? '' : ' disabled') + '><span><strong>' + esc(App.typeLabel[t]) + '</strong><small>' +
-          (avail ? 'มีมาตรฐานที่ประกาศใช้' : t === 'MANAGER' ? 'เตรียมโครงสร้าง — ยังไม่เปิดใช้ในรุ่นแรก' : 'ยังไม่มีมาตรฐานที่ประกาศใช้') + '</small></span></label>';
+          (avail ? 'มีมาตรฐานที่ประกาศใช้' : t === 'MANAGER' ? 'ยังไม่เปิดใช้ — Admin เปิดได้ที่เมนูมาตรฐาน' : 'ยังไม่มีมาตรฐานที่ประกาศใช้') + '</small></span></label>';
       }).join('') + '</div></fieldset>' +
       '<label class="field"><span>มาตรฐาน / เวอร์ชัน</span><select name="standard_version_id" required disabled><option value="">เลือกประเภทก่อน</option></select></label>' +
       '<label class="field"><span>เส้นทางการออดิท</span><select name="route_id"><option value="">ใช้เส้นทางแนะนำ</option></select></label></div></section>' +
       '<section class="panel"><h2 class="panel-title">หน่วยงานที่ตรวจ</h2><div class="form-grid">' +
       '<label class="field"><span>Workshop</span><select name="workshop_id" required><option value="">เลือก Workshop</option>' + md.workshops.map(function (w) { return '<option value="' + w.id + '">' + esc(w.code + ' ' + w.name_th) + '</option>'; }).join('') + '</select></label>' +
-      '<label class="field"><span>Group</span><select name="group_id"><option value="">–</option></select></label>' +
-      '<label class="field"><span>Team</span><select name="team_id"><option value="">–</option></select></label>' +
+      '<label class="field"><span>Group</span><input name="group_name" list="dl-groups" autocomplete="off" placeholder="พิมพ์ชื่อ Group หรือเลือกจากรายการ"><datalist id="dl-groups"></datalist><input type="hidden" name="group_id"></label>' +
+      '<label class="field"><span>Team</span><input name="team_name" list="dl-teams" autocomplete="off" placeholder="พิมพ์ชื่อ Team หรือเลือกจากรายการ"><datalist id="dl-teams"></datalist><input type="hidden" name="team_id"></label>' +
       '<label class="field" id="team-count-f" hidden><span>จำนวนทีมในกลุ่ม (ใช้คำนวณจำนวนตัวอย่าง)</span><input type="number" name="team_count" min="1" step="1"></label>' +
       '<label class="field"><span>ผู้ตรวจ</span><select name="auditor_user_id">' + md.auditors.map(function (a) { return '<option value="' + a.id + '"' + (a.id === u.id ? ' selected' : '') + '>' + esc(a.display_name) + '</option>'; }).join('') + '</select></label>' +
       '<label class="field"><span>ผู้รับการตรวจ</span><input name="auditee_name" placeholder="ชื่อหัวหน้าทีม / หัวหน้ากลุ่ม"></label>' +
@@ -1233,8 +1249,8 @@ a.kpi:hover{background:var(--blue-50)}
       f.standard_version_id.innerHTML = list.map(function (v) { return '<option value="' + v.id + '">' + esc(v.set_name + ' — ' + v.version_label + ' (มีผล ' + v.effective_date + ')') + '</option>'; }).join('') || '<option value="">ไม่มีมาตรฐาน</option>';
       fillRoutes(); loadCriteria();
       App.$('#team-count-f').hidden = t !== 'GROUP';
-      f.team_id.disabled = t !== 'TEAM';
-      f.group_id.disabled = t === 'KUP';
+      f.team_name.disabled = f.team_id.disabled = t !== 'TEAM';
+      f.group_name.disabled = f.group_id.disabled = t === 'KUP';
     }
     function fillRoutes() {
       var v = md.versions.filter(function (x) { return x.id === f.standard_version_id.value; })[0];
@@ -1242,14 +1258,28 @@ a.kpi:hover{background:var(--blue-50)}
     }
     function fillUnits() {
       var w = f.workshop_id.value;
-      f.group_id.innerHTML = '<option value="">–</option>' + md.groups.filter(function (g) { return g.workshop_id === w; }).map(function (g) { return '<option value="' + g.id + '">' + esc(g.name) + '</option>'; }).join('');
+      App.$('#dl-groups').innerHTML = md.groups.filter(function (g) { return g.workshop_id === w; }).map(function (g) { return '<option value="' + esc(g.name) + '"></option>'; }).join('');
+      resolveGroup();
+    }
+    // Typed names are matched (case-insensitively) to existing records; an unknown name is created by the server on submit.
+    function norm(x) { return String(x || '').trim().toLowerCase(); }
+    function resolveGroup() {
+      var w = f.workshop_id.value, n = norm(f.group_name.value);
+      var g = n ? md.groups.filter(function (x) { return x.workshop_id === w && norm(x.name) === n; })[0] : null;
+      f.group_id.value = g ? g.id : '';
       fillTeams();
+    }
+    function resolveTeam() {
+      var w = f.workshop_id.value, g = f.group_id.value, n = norm(f.team_name.value);
+      var t = n ? md.teams.filter(function (x) { return x.workshop_id === w && (!g || x.group_id === g) && norm(x.name) === n; })[0] : null;
+      f.team_id.value = t ? t.id : '';
     }
     function fillTeams() {
       var g = f.group_id.value, w = f.workshop_id.value;
       var teams = md.teams.filter(function (t) { return t.workshop_id === w && (!g || t.group_id === g); });
-      f.team_id.innerHTML = '<option value="">–</option>' + teams.map(function (t) { return '<option value="' + t.id + '">' + esc(t.name) + '</option>'; }).join('');
+      App.$('#dl-teams').innerHTML = teams.map(function (t) { return '<option value="' + esc(t.name) + '"></option>'; }).join('');
       if (g) f.team_count.value = md.teams.filter(function (t) { return t.group_id === g; }).length || '';
+      resolveTeam();
     }
     function loadCriteria() {
       var vid = f.standard_version_id.value;
@@ -1269,30 +1299,30 @@ a.kpi:hover{background:var(--blue-50)}
     }
     App.$$('input[name=audit_type]', f).forEach(function (r) { r.onchange = fillVersions; });
     f.standard_version_id.onchange = function () { fillRoutes(); loadCriteria(); };
-    f.workshop_id.onchange = fillUnits; f.group_id.onchange = fillTeams;
+    f.workshop_id.onchange = fillUnits; f.group_name.oninput = resolveGroup; f.team_name.oninput = resolveTeam;
     App.$$('input[name=scope_mode]', f).forEach(function (r) { r.onchange = function () { App.$('#partial-box').hidden = f.scope_mode.value !== 'PARTIAL'; loadCriteria(); }; });
     var first = (q.type && App.$('input[name=audit_type][value=' + q.type + ']:not([disabled])', f)) || App.$('input[name=audit_type]:not([disabled])', f); if (first) { first.checked = true; fillVersions(); }
     if (q.v) { f.standard_version_id.value = q.v; fillRoutes(); }
     if (q.route) f.route_id.value = q.route;
     if (q.ws) { f.workshop_id.value = q.ws; fillUnits(); }
-    if (q.g) { f.group_id.value = q.g; fillTeams(); }
-    if (q.t) { f.team_id.value = q.t; var tm = md.teams.filter(function (t) { return t.id === q.t; })[0]; if (tm && tm.leader_name) f.auditee_name.value = tm.leader_name; }
+    if (q.g) { var gq = md.groups.filter(function (x) { return x.id === q.g; })[0]; if (gq) { f.group_name.value = gq.name; resolveGroup(); } }
+    if (q.t) { var tm = md.teams.filter(function (t) { return t.id === q.t; })[0]; if (tm) { f.team_name.value = tm.name; resolveTeam(); if (tm.leader_name) f.auditee_name.value = tm.leader_name; } }
     if (q.t) App.$('#new-audit').insertAdjacentHTML('afterbegin', '<p class="notice notice-info">' + App.icon('chevr') + 'ตรวจทีมถัดไป — ใช้มาตรฐานและเส้นทางเดิม ตรวจสอบแล้วกด "สร้างรอบตรวจ"</p>');
     f.onsubmit = function (ev) {
       ev.preventDefault();
       var err = App.$('#na-err'); err.hidden = true;
-      var req = { audit_type: f.audit_type.value, standard_version_id: f.standard_version_id.value, route_id: f.route_id.value, workshop_id: f.workshop_id.value, group_id: f.group_id.value,
-        team_id: f.team_id.value, team_count: f.team_count.value, auditor_user_id: f.auditor_user_id.value, auditee_name: f.auditee_name.value, audit_date: f.audit_date.value,
+      var req = { audit_type: f.audit_type.value, standard_version_id: f.standard_version_id.value, route_id: f.route_id.value, workshop_id: f.workshop_id.value, group_id: f.group_id.value, group_name: f.group_name.value.trim(),
+        team_id: f.team_id.value, team_name: f.team_name.value.trim(), team_count: f.team_count.value, auditor_user_id: f.auditor_user_id.value, auditee_name: f.auditee_name.value, audit_date: f.audit_date.value,
         scope_mode: f.scope_mode.value, scope_note: f.scope_note.value, criterion_ids: App.$$('input[name=crit]:checked', f).map(function (x) { return x.value; }) };
       var missing = [];
       if (!req.standard_version_id) missing.push('มาตรฐาน');
       if (!req.workshop_id) missing.push('Workshop');
-      if (req.audit_type === 'TEAM' && !req.team_id) missing.push('Team');
-      if (req.audit_type === 'GROUP' && !req.group_id) missing.push('Group');
+      if (req.audit_type === 'TEAM' && !req.team_id && !req.team_name) missing.push('Team');
+      if (req.audit_type === 'GROUP' && !req.group_id && !req.group_name) missing.push('Group');
       if (req.scope_mode === 'PARTIAL' && !req.criterion_ids.length) missing.push('ข้อที่จะตรวจ');
       if (missing.length) { err.textContent = 'กรอกให้ครบ: ' + missing.join(', '); err.hidden = false; return; }
       var btn = f.querySelector('button[type=submit]'); btn.disabled = true; btn.textContent = 'กำลังสร้าง…';
-      App.api('apiCreateAudit', req).then(function (r) { App.toast('สร้างรอบตรวจ ' + r.audit_no + ' แล้ว', 'ok'); location.hash = '#/audit/' + r.audit_id; },
+      App.api('apiCreateAudit', req).then(function (r) { App.toast('สร้างรอบตรวจ ' + r.audit_no + ' แล้ว', 'ok'); App.loadMaster().then(function () { App.nav('#/audit/' + r.audit_id); }, function () { App.nav('#/audit/' + r.audit_id); }); },
         function (e) { err.textContent = App.errorText(e); err.hidden = false; btn.disabled = false; btn.textContent = 'สร้างรอบตรวจ'; });
     };
   });
@@ -2392,7 +2422,7 @@ a.kpi:hover{background:var(--blue-50)}
   }
 
   window.addEventListener('beforeunload', function (e) {
-    if (W.data && Object.keys(W.drafts).length && location.hash.indexOf('#/audit/') === 0) { flushAll(); e.preventDefault(); e.returnValue = ''; }
+    if (W.data && Object.keys(W.drafts).length && App.hash().indexOf('#/audit/') === 0) { flushAll(); e.preventDefault(); e.returnValue = ''; }
   });
   document.addEventListener('visibilitychange', function () { if (document.hidden && W.data) flushAll(); });
 })();
@@ -2556,7 +2586,7 @@ a.kpi:hover{background:var(--blue-50)}
       '<label class="search"><span class="sr-only">ค้นหา</span><input id="is-search" type="search" placeholder="ค้นหา Issue ID ข้อกำหนด ผู้รับผิดชอบ"></label><button class="btn btn-ghost" id="is-exp">' + App.icon('download') + 'Excel</button></div><div id="is-list">' + App.loading() + '</div>';
     var filters = {}; ['status', 'workshop_id', 'audit_type', 'dimension_code', 'from', 'to', 'audit_id'].forEach(function (k) { if (q[k]) filters[k] = q[k]; });
     if (q.include_demo === '1') filters.include_demo = true;
-    App.$('#is-ws').onchange = function () { var nq = Object.assign({}, q, { workshop_id: this.value }); if (!this.value) delete nq.workshop_id; location.hash = '#/issues?' + Object.keys(nq).map(function (k) { return k + '=' + encodeURIComponent(nq[k]); }).join('&'); };
+    App.$('#is-ws').onchange = function () { var nq = Object.assign({}, q, { workshop_id: this.value }); if (!this.value) delete nq.workshop_id; App.nav('#/issues?' + Object.keys(nq).map(function (k) { return k + '=' + encodeURIComponent(nq[k]); }).join('&')); };
     App.$('#is-exp').onclick = function () { var b = this; b.disabled = true; App.api('apiExportFindingsExcel', filters).then(App.download, App.fail).then(function () { b.disabled = false; }); };
     App.api('apiListFindings', filters).then(function (list) {
       var draw = function (t) {
@@ -2656,19 +2686,36 @@ a.kpi:hover{background:var(--blue-50)}
       var h = '<div class="page-head"><p class="muted">มาตรฐานที่ประกาศใช้แล้วแก้ไขไม่ได้ การแก้ไขต้องสร้างฉบับใหม่ ผลออดิทเดิมจึงไม่เปลี่ยน</p>' +
         (App.can('admin') ? '<label class="btn btn-primary">' + App.icon('upload') + 'นำเข้ามาตรฐานจาก Excel<input type="file" id="std-file" accept=".xlsx" hidden></label>' : '') + '</div><div id="imp-status"></div>';
       sets.forEach(function (s) {
-        h += '<section class="panel"><header class="panel-h"><h2>' + esc(s.name_th) + '</h2><span class="muted">' + esc(s.name_zh) + ' • ' + (s.scoring_mode === 'BAND' ? 'ช่วงคะแนน' : 'หักคะแนนตามเกณฑ์') + (s.enabled_for_audit ? '' : ' • <span class="t-warn">ยังไม่เปิดใช้ออดิท</span>') + '</span></header>' +
+        h += '<section class="panel"><header class="panel-h"><h2>' + esc(s.name_th) + '</h2><span class="muted">' + esc(s.name_zh) + ' • ' + (s.scoring_mode === 'BAND' ? 'ช่วงคะแนน' : 'หักคะแนนตามเกณฑ์') + (s.enabled_for_audit ? ' • เปิดใช้ออดิท' : ' • <span class="t-warn">ยังไม่เปิดใช้ออดิท</span>') + (App.can('admin') ? ' <button class="btn btn-sm ' + (s.enabled_for_audit ? 'btn-ghost' : 'btn-primary') + '" data-enable="' + s.id + '" data-on="' + (s.enabled_for_audit ? '0' : '1') + '">' + (s.enabled_for_audit ? 'ปิดใช้ออดิท' : 'เปิดใช้ออดิท') + '</button>' : '') + '</span></header>' +
           (s.versions.length ? '<ul class="row-list">' + s.versions.map(function (v) {
-            return '<li><a href="#/standard/' + v.id + '"><span class="rl-main"><strong>' + esc(v.version_label) + '</strong> มีผล ' + esc(v.effective_date) + '</span><span class="rl-meta">' + esc(v.source_file_name) + ' / ' + esc(v.source_sheet_name) + ' ' + App.chip(v.status) + '</span></a></li>';
+            return '<li><a href="#/standard/' + v.id + '"><span class="rl-main"><strong>' + esc(v.version_label) + '</strong> มีผล ' + esc(v.effective_date) + '</span><span class="rl-meta">' + esc(v.source_file_name) + ' / ' + esc(v.source_sheet_name) + ' ' + App.chip(v.status) + '</span></a>' +
+              (v.status === 'DRAFT' && App.can('admin') ? '<button class="btn btn-sm btn-danger" data-del="' + v.id + '" data-label="' + esc(v.version_label) + '" aria-label="ลบฉบับร่าง ' + esc(v.version_label) + '">' + App.icon('trash') + 'ลบฉบับร่าง</button>' : '') + '</li>';
           }).join('') + '</ul>' : App.empty('ยังไม่มีเวอร์ชัน', App.can('admin') ? 'นำเข้าจากไฟล์ Excel มาตรฐาน' : '')) + '</section>';
       });
       App.$('#main').innerHTML = h;
+      App.$$('[data-enable]').forEach(function (btn) {
+        btn.onclick = function () {
+          var on = btn.getAttribute('data-on') === '1';
+          btn.disabled = true;
+          App.api('apiSetStandardEnabled', btn.getAttribute('data-enable'), on).then(function () { return App.loadMaster(); }).then(function () { App.toast(on ? 'เปิดใช้ออดิทแล้ว' : 'ปิดใช้ออดิทแล้ว', 'ok'); App.render(); }, function (e) { btn.disabled = false; App.fail(e); });
+        };
+      });
+      App.$$('[data-del]').forEach(function (btn) {
+        btn.onclick = function () {
+          App.confirm('ลบฉบับร่าง ' + btn.getAttribute('data-label'), 'ลบถาวร กู้คืนไม่ได้ (ใช้ได้เฉพาะฉบับร่างที่ยังไม่มีรอบตรวจอ้างอิง)', 'ลบฉบับร่าง', 'danger').then(function (ok) {
+            if (!ok) return;
+            btn.disabled = true;
+            App.api('apiDeleteDraftVersion', btn.getAttribute('data-del')).then(function () { App.toast('ลบฉบับร่างแล้ว', 'ok'); App.render(); }, function (e) { btn.disabled = false; App.fail(e); });
+          });
+        };
+      });
       var inp = App.$('#std-file');
       if (inp) inp.onchange = function () {
         var file = inp.files[0]; if (!file) return;
         App.$('#imp-status').innerHTML = App.loading('กำลังอ่านไฟล์ ' + file.name + '…');
         var r = new FileReader();
         r.onload = function () {
-          App.api('apiParseStandardFile', file.name, String(r.result).split(',')[1]).then(function (res) { App.state.importPreview = res; location.hash = '#/standards/import'; },
+          App.api('apiParseStandardFile', file.name, String(r.result).split(',')[1]).then(function (res) { App.state.importPreview = res; App.nav('#/standards/import'); },
             function (e) { App.$('#imp-status').innerHTML = App.errorBox(e); });
         };
         r.readAsDataURL(file);
@@ -2680,7 +2727,7 @@ a.kpi:hover{background:var(--blue-50)}
   App.route('/standards/import', function () {
     App.setTitle('ตรวจทานข้อมูลนำเข้า');
     var res = App.state.importPreview;
-    if (!res) { location.hash = '#/standards'; return; }
+    if (!res) { App.nav('#/standards'); return; }
     var p = res.preview;
     var cands = p.sheets.filter(function (s) { return s.candidate; });
     var h = '<div class="page-head"><div><a class="link-btn" href="#/standards">' + App.icon('chevl') + 'คลังมาตรฐาน</a><h2 class="h-lg">' + esc(p.file_name) + '</h2><p class="muted">SHA-256 ' + esc(String(res.file_hash).slice(0, 16)) + '… • ตัวอ่าน ' + esc(p.parser_version) + '</p></div></div>';
@@ -2721,7 +2768,7 @@ a.kpi:hover{background:var(--blue-50)}
       var sel = App.$('input[name=sheet]:checked', f);
       if (!sel || !f.label.value || !f.eff.value) { err.textContent = 'เลือกชีต และกรอกชื่อเวอร์ชันกับวันที่มีผล'; err.hidden = false; return; }
       App.api('apiCreateDraftVersion', { import_file_id: res.import_file_id, sheet_index: Number(sel.value), version_label: f.label.value, effective_date: f.eff.value, acknowledge_similar: f.ack.checked })
-        .then(function (r) { App.toast('สร้างฉบับร่างแล้ว — ตรวจทานก่อนประกาศใช้', 'ok'); location.hash = '#/standard/' + r.version_id; }, function (e) { err.textContent = App.errorText(e); err.hidden = false; });
+        .then(function (r) { App.toast('สร้างฉบับร่างแล้ว — ตรวจทานก่อนประกาศใช้', 'ok'); App.nav('#/standard/' + r.version_id); }, function (e) { err.textContent = App.errorText(e); err.hidden = false; });
     };
   });
 
@@ -2834,7 +2881,7 @@ a.kpi:hover{background:var(--blue-50)}
     var pub = App.$('#v-publish');
     if (pub) pub.onclick = function () { App.confirm('ประกาศใช้ ' + v.version_label, 'หลังประกาศใช้จะแก้ไขไม่ได้ ฉบับที่ใช้อยู่เดิมของชุดนี้จะเปลี่ยนเป็น "เลิกใช้" (รอบตรวจเดิมไม่เปลี่ยน)', 'ประกาศใช้').then(function (ok) { if (ok) App.api('apiPublishVersion', v.id, v.version).then(function (r) { App.toast('ประกาศใช้แล้ว', 'ok'); App.loadMaster().then(reload); }, App.fail); }); };
     var cl = App.$('#v-clone');
-    if (cl) cl.onclick = function () { App.ask('สร้างฉบับใหม่จาก ' + v.version_label, 'ชื่อเวอร์ชันใหม่', { ok: 'สร้างฉบับร่าง' }).then(function (label) { if (label) App.api('apiCloneVersion', v.id, label, App.today()).then(function (r) { location.hash = '#/standard/' + r.version_id; }, App.fail); }); };
+    if (cl) cl.onclick = function () { App.ask('สร้างฉบับใหม่จาก ' + v.version_label, 'ชื่อเวอร์ชันใหม่', { ok: 'สร้างฉบับร่าง' }).then(function (label) { if (label) App.api('apiCloneVersion', v.id, label, App.today()).then(function (r) { App.nav('#/standard/' + r.version_id); }, App.fail); }); };
     var sf = App.$('#v-set');
     if (sf && edit) sf.onsubmit = function (ev) {
       ev.preventDefault();

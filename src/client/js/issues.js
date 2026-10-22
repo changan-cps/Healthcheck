@@ -14,7 +14,7 @@
       '<label class="search"><span class="sr-only">ค้นหา</span><input id="is-search" type="search" placeholder="ค้นหา Issue ID ข้อกำหนด ผู้รับผิดชอบ"></label><button class="btn btn-ghost" id="is-exp">' + App.icon('download') + 'Excel</button></div><div id="is-list">' + App.loading() + '</div>';
     var filters = {}; ['status', 'workshop_id', 'audit_type', 'dimension_code', 'from', 'to', 'audit_id'].forEach(function (k) { if (q[k]) filters[k] = q[k]; });
     if (q.include_demo === '1') filters.include_demo = true;
-    App.$('#is-ws').onchange = function () { var nq = Object.assign({}, q, { workshop_id: this.value }); if (!this.value) delete nq.workshop_id; location.hash = '#/issues?' + Object.keys(nq).map(function (k) { return k + '=' + encodeURIComponent(nq[k]); }).join('&'); };
+    App.$('#is-ws').onchange = function () { var nq = Object.assign({}, q, { workshop_id: this.value }); if (!this.value) delete nq.workshop_id; App.nav('#/issues?' + Object.keys(nq).map(function (k) { return k + '=' + encodeURIComponent(nq[k]); }).join('&')); };
     App.$('#is-exp').onclick = function () { var b = this; b.disabled = true; App.api('apiExportFindingsExcel', filters).then(App.download, App.fail).then(function () { b.disabled = false; }); };
     App.api('apiListFindings', filters).then(function (list) {
       var draw = function (t) {

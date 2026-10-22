@@ -42,7 +42,7 @@
       ev.preventDefault();
       var o = {}; ['from', 'to', 'quarter', 'workshop_id', 'group_id', 'team_id', 'audit_type', 'kup_dimension'].forEach(function (k) { if (form[k].value && !form[k].disabled) o[k] = form[k].value; });
       if (form.include_demo.checked) o.include_demo = '1';
-      location.hash = '#/?' + qs(o);
+      App.nav('#/?' + qs(o));
     };
     form.audit_type.onchange = function () { form.kup_dimension.disabled = form.audit_type.value !== 'KUP'; };
     var load = function () {

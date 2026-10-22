@@ -229,10 +229,26 @@
   // ---------- router ----------
   var routes = [];
   App.route = function (pattern, view) { routes.push({ re: new RegExp('^' + pattern.replace(/:[a-z]+/g, '([^/]+)') + '$'), view: view }); };
-  App.go = function (hash) { if (location.hash === hash) App.render(); else location.hash = hash; };
+  // Routing keeps its own current-hash so menus work even where the host page (Apps Script sandbox iframe,
+  // company portal iframe) never delivers hashchange or blocks location.hash. location.hash is still updated when allowed.
+  var vhash = null;
+  App.hash = function () { return vhash != null ? vhash : (location.hash || '#/'); };
+  App.nav = function (h) {
+    vhash = h;
+    try { if (location.hash !== h) location.hash = h; } catch (e) { /* sandboxed: ignore */ }
+    App.render();
+  };
+  App.go = function (hash) { App.nav(hash); };
+  document.addEventListener('click', function (e) {
+    if (e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    var a = e.target.closest && e.target.closest('a[href^="#/"]');
+    if (!a) return;
+    e.preventDefault();
+    App.nav(a.getAttribute('href'));
+  });
   App.render = function () {
     if (!App.state.token) { App.views.login(); return; }
-    var h = (location.hash || '#/').slice(1) || '/';
+    var h = App.hash().slice(1) || '/';
     var q = {};
     var qi = h.indexOf('?');
     if (qi >= 0) { h.slice(qi + 1).split('&').forEach(function (kv) { var p = kv.split('='); if (p[0]) q[decodeURIComponent(p[0])] = decodeURIComponent(p[1] || ''); }); h = h.slice(0, qi); }
@@ -252,7 +268,7 @@
     App.shell(h);
     App.$('#main').innerHTML = App.empty('ไม่พบหน้านี้', 'ลิงก์อาจไม่ถูกต้อง', '<a class="btn btn-primary" href="#/">ไปหน้าภาพรวม</a>');
   };
-  window.addEventListener('hashchange', App.render);
+  window.addEventListener('hashchange', function () { var cur = location.hash || '#/'; if (cur === vhash) return; vhash = cur; App.render(); });
 
   App.loading = function (label) { return '<div class="state state-loading" role="status"><span class="spinner" aria-hidden="true"></span>' + esc(label || 'กำลังโหลดข้อมูล…') + '</div>'; };
   App.empty = function (title, text, action) { return '<div class="state state-empty"><strong>' + esc(title) + '</strong><p>' + esc(text || '') + '</p>' + (action || '') + '</div>'; };

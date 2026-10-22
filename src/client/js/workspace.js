@@ -846,7 +846,7 @@
   }
 
   window.addEventListener('beforeunload', function (e) {
-    if (W.data && Object.keys(W.drafts).length && location.hash.indexOf('#/audit/') === 0) { flushAll(); e.preventDefault(); e.returnValue = ''; }
+    if (W.data && Object.keys(W.drafts).length && App.hash().indexOf('#/audit/') === 0) { flushAll(); e.preventDefault(); e.returnValue = ''; }
   });
   document.addEventListener('visibilitychange', function () { if (document.hidden && W.data) flushAll(); });
 })();

@@ -77,14 +77,14 @@
       '<fieldset class="field span-2"><legend>ประเภทการตรวจ</legend><div class="radio-row">' + types.map(function (t) {
         var avail = md.versions.some(function (v) { return v.level === t && v.enabled_for_audit; });
         return '<label class="radio-card' + (avail ? '' : ' disabled') + '"><input type="radio" name="audit_type" value="' + t + '"' + (avail ? '' : ' disabled') + '><span><strong>' + esc(App.typeLabel[t]) + '</strong><small>' +
-          (avail ? 'มีมาตรฐานที่ประกาศใช้' : t === 'MANAGER' ? 'เตรียมโครงสร้าง — ยังไม่เปิดใช้ในรุ่นแรก' : 'ยังไม่มีมาตรฐานที่ประกาศใช้') + '</small></span></label>';
+          (avail ? 'มีมาตรฐานที่ประกาศใช้' : t === 'MANAGER' ? 'ยังไม่เปิดใช้ — Admin เปิดได้ที่เมนูมาตรฐาน' : 'ยังไม่มีมาตรฐานที่ประกาศใช้') + '</small></span></label>';
       }).join('') + '</div></fieldset>' +
       '<label class="field"><span>มาตรฐาน / เวอร์ชัน</span><select name="standard_version_id" required disabled><option value="">เลือกประเภทก่อน</option></select></label>' +
       '<label class="field"><span>เส้นทางการออดิท</span><select name="route_id"><option value="">ใช้เส้นทางแนะนำ</option></select></label></div></section>' +
       '<section class="panel"><h2 class="panel-title">หน่วยงานที่ตรวจ</h2><div class="form-grid">' +
       '<label class="field"><span>Workshop</span><select name="workshop_id" required><option value="">เลือก Workshop</option>' + md.workshops.map(function (w) { return '<option value="' + w.id + '">' + esc(w.code + ' ' + w.name_th) + '</option>'; }).join('') + '</select></label>' +
-      '<label class="field"><span>Group</span><select name="group_id"><option value="">–</option></select></label>' +
-      '<label class="field"><span>Team</span><select name="team_id"><option value="">–</option></select></label>' +
+      '<label class="field"><span>Group</span><input name="group_name" list="dl-groups" autocomplete="off" placeholder="พิมพ์ชื่อ Group หรือเลือกจากรายการ"><datalist id="dl-groups"></datalist><input type="hidden" name="group_id"></label>' +
+      '<label class="field"><span>Team</span><input name="team_name" list="dl-teams" autocomplete="off" placeholder="พิมพ์ชื่อ Team หรือเลือกจากรายการ"><datalist id="dl-teams"></datalist><input type="hidden" name="team_id"></label>' +
       '<label class="field" id="team-count-f" hidden><span>จำนวนทีมในกลุ่ม (ใช้คำนวณจำนวนตัวอย่าง)</span><input type="number" name="team_count" min="1" step="1"></label>' +
       '<label class="field"><span>ผู้ตรวจ</span><select name="auditor_user_id">' + md.auditors.map(function (a) { return '<option value="' + a.id + '"' + (a.id === u.id ? ' selected' : '') + '>' + esc(a.display_name) + '</option>'; }).join('') + '</select></label>' +
       '<label class="field"><span>ผู้รับการตรวจ</span><input name="auditee_name" placeholder="ชื่อหัวหน้าทีม / หัวหน้ากลุ่ม"></label>' +
@@ -103,8 +103,8 @@
       f.standard_version_id.innerHTML = list.map(function (v) { return '<option value="' + v.id + '">' + esc(v.set_name + ' — ' + v.version_label + ' (มีผล ' + v.effective_date + ')') + '</option>'; }).join('') || '<option value="">ไม่มีมาตรฐาน</option>';
       fillRoutes(); loadCriteria();
       App.$('#team-count-f').hidden = t !== 'GROUP';
-      f.team_id.disabled = t !== 'TEAM';
-      f.group_id.disabled = t === 'KUP';
+      f.team_name.disabled = f.team_id.disabled = t !== 'TEAM';
+      f.group_name.disabled = f.group_id.disabled = t === 'KUP';
     }
     function fillRoutes() {
       var v = md.versions.filter(function (x) { return x.id === f.standard_version_id.value; })[0];
@@ -112,14 +112,28 @@
     }
     function fillUnits() {
       var w = f.workshop_id.value;
-      f.group_id.innerHTML = '<option value="">–</option>' + md.groups.filter(function (g) { return g.workshop_id === w; }).map(function (g) { return '<option value="' + g.id + '">' + esc(g.name) + '</option>'; }).join('');
+      App.$('#dl-groups').innerHTML = md.groups.filter(function (g) { return g.workshop_id === w; }).map(function (g) { return '<option value="' + esc(g.name) + '"></option>'; }).join('');
+      resolveGroup();
+    }
+    // Typed names are matched (case-insensitively) to existing records; an unknown name is created by the server on submit.
+    function norm(x) { return String(x || '').trim().toLowerCase(); }
+    function resolveGroup() {
+      var w = f.workshop_id.value, n = norm(f.group_name.value);
+      var g = n ? md.groups.filter(function (x) { return x.workshop_id === w && norm(x.name) === n; })[0] : null;
+      f.group_id.value = g ? g.id : '';
       fillTeams();
+    }
+    function resolveTeam() {
+      var w = f.workshop_id.value, g = f.group_id.value, n = norm(f.team_name.value);
+      var t = n ? md.teams.filter(function (x) { return x.workshop_id === w && (!g || x.group_id === g) && norm(x.name) === n; })[0] : null;
+      f.team_id.value = t ? t.id : '';
     }
     function fillTeams() {
       var g = f.group_id.value, w = f.workshop_id.value;
       var teams = md.teams.filter(function (t) { return t.workshop_id === w && (!g || t.group_id === g); });
-      f.team_id.innerHTML = '<option value="">–</option>' + teams.map(function (t) { return '<option value="' + t.id + '">' + esc(t.name) + '</option>'; }).join('');
+      App.$('#dl-teams').innerHTML = teams.map(function (t) { return '<option value="' + esc(t.name) + '"></option>'; }).join('');
       if (g) f.team_count.value = md.teams.filter(function (t) { return t.group_id === g; }).length || '';
+      resolveTeam();
     }
     function loadCriteria() {
       var vid = f.standard_version_id.value;
@@ -139,30 +153,30 @@
     }
     App.$$('input[name=audit_type]', f).forEach(function (r) { r.onchange = fillVersions; });
     f.standard_version_id.onchange = function () { fillRoutes(); loadCriteria(); };
-    f.workshop_id.onchange = fillUnits; f.group_id.onchange = fillTeams;
+    f.workshop_id.onchange = fillUnits; f.group_name.oninput = resolveGroup; f.team_name.oninput = resolveTeam;
     App.$$('input[name=scope_mode]', f).forEach(function (r) { r.onchange = function () { App.$('#partial-box').hidden = f.scope_mode.value !== 'PARTIAL'; loadCriteria(); }; });
     var first = (q.type && App.$('input[name=audit_type][value=' + q.type + ']:not([disabled])', f)) || App.$('input[name=audit_type]:not([disabled])', f); if (first) { first.checked = true; fillVersions(); }
     if (q.v) { f.standard_version_id.value = q.v; fillRoutes(); }
     if (q.route) f.route_id.value = q.route;
     if (q.ws) { f.workshop_id.value = q.ws; fillUnits(); }
-    if (q.g) { f.group_id.value = q.g; fillTeams(); }
-    if (q.t) { f.team_id.value = q.t; var tm = md.teams.filter(function (t) { return t.id === q.t; })[0]; if (tm && tm.leader_name) f.auditee_name.value = tm.leader_name; }
+    if (q.g) { var gq = md.groups.filter(function (x) { return x.id === q.g; })[0]; if (gq) { f.group_name.value = gq.name; resolveGroup(); } }
+    if (q.t) { var tm = md.teams.filter(function (t) { return t.id === q.t; })[0]; if (tm) { f.team_name.value = tm.name; resolveTeam(); if (tm.leader_name) f.auditee_name.value = tm.leader_name; } }
     if (q.t) App.$('#new-audit').insertAdjacentHTML('afterbegin', '<p class="notice notice-info">' + App.icon('chevr') + 'ตรวจทีมถัดไป — ใช้มาตรฐานและเส้นทางเดิม ตรวจสอบแล้วกด "สร้างรอบตรวจ"</p>');
     f.onsubmit = function (ev) {
       ev.preventDefault();
       var err = App.$('#na-err'); err.hidden = true;
-      var req = { audit_type: f.audit_type.value, standard_version_id: f.standard_version_id.value, route_id: f.route_id.value, workshop_id: f.workshop_id.value, group_id: f.group_id.value,
-        team_id: f.team_id.value, team_count: f.team_count.value, auditor_user_id: f.auditor_user_id.value, auditee_name: f.auditee_name.value, audit_date: f.audit_date.value,
+      var req = { audit_type: f.audit_type.value, standard_version_id: f.standard_version_id.value, route_id: f.route_id.value, workshop_id: f.workshop_id.value, group_id: f.group_id.value, group_name: f.group_name.value.trim(),
+        team_id: f.team_id.value, team_name: f.team_name.value.trim(), team_count: f.team_count.value, auditor_user_id: f.auditor_user_id.value, auditee_name: f.auditee_name.value, audit_date: f.audit_date.value,
         scope_mode: f.scope_mode.value, scope_note: f.scope_note.value, criterion_ids: App.$$('input[name=crit]:checked', f).map(function (x) { return x.value; }) };
       var missing = [];
       if (!req.standard_version_id) missing.push('มาตรฐาน');
       if (!req.workshop_id) missing.push('Workshop');
-      if (req.audit_type === 'TEAM' && !req.team_id) missing.push('Team');
-      if (req.audit_type === 'GROUP' && !req.group_id) missing.push('Group');
+      if (req.audit_type === 'TEAM' && !req.team_id && !req.team_name) missing.push('Team');
+      if (req.audit_type === 'GROUP' && !req.group_id && !req.group_name) missing.push('Group');
       if (req.scope_mode === 'PARTIAL' && !req.criterion_ids.length) missing.push('ข้อที่จะตรวจ');
       if (missing.length) { err.textContent = 'กรอกให้ครบ: ' + missing.join(', '); err.hidden = false; return; }
       var btn = f.querySelector('button[type=submit]'); btn.disabled = true; btn.textContent = 'กำลังสร้าง…';
-      App.api('apiCreateAudit', req).then(function (r) { App.toast('สร้างรอบตรวจ ' + r.audit_no + ' แล้ว', 'ok'); location.hash = '#/audit/' + r.audit_id; },
+      App.api('apiCreateAudit', req).then(function (r) { App.toast('สร้างรอบตรวจ ' + r.audit_no + ' แล้ว', 'ok'); App.loadMaster().then(function () { App.nav('#/audit/' + r.audit_id); }, function () { App.nav('#/audit/' + r.audit_id); }); },
         function (e) { err.textContent = App.errorText(e); err.hidden = false; btn.disabled = false; btn.textContent = 'สร้างรอบตรวจ'; });
     };
   });

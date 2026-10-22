@@ -181,6 +181,13 @@ test('standard import → publish → audit → confirm → findings → dashboa
   assert.equal(again.audit.final_score, 97);
   assert.equal(again.standard.criteria[0].max_points, 10);
 
+  // a published version can never be deleted; a draft can, with its criteria/rules/routes
+  assert.equal(rt.apiDeleteDraftVersion(admin, vid).error.code, 'IMMUTABLE');
+  assert.equal(rt.apiDeleteDraftVersion(m.tok.viewerPS, clone).error.code, 'FORBIDDEN');
+  okData(rt.apiDeleteDraftVersion(admin, clone));
+  assert.equal(rt.apiGetStandardVersion(admin, clone).ok, false);
+  assert.ok(okData(rt.apiGetStandardVersion(admin, vid)).criteria.length > 0, 'published version untouched');
+
   // reports
   rt.__state.fetchHandler = () => ({ getResponseCode: () => 200, getBlob: () => ({ getBytes: () => [80, 75] }), getContentText: () => '' });
   assert.match(okData(rt.apiExportAuditExcel(A, created.audit_id)).file_name, /_FINAL_scores\.xlsx$/);

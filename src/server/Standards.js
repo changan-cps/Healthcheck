@@ -344,6 +344,48 @@ function apiCloneVersion(token, versionId, label, effectiveDate) {
   });
 }
 
+/** Admin switch: allow/stop creating new audits from a standard set. Needs a PUBLISHED version to enable; past audits are unaffected. */
+function apiSetStandardEnabled(token, setId, enabled) {
+  return guard_(token, function (u) {
+    Permissions.assert(u, 'standard.manage');
+    return Db.transaction(function () {
+      var set = Db.get('standard_sets', setId);
+      if (!set) throw appError_('NOT_FOUND', 'ไม่พบชุดมาตรฐาน');
+      enabled = !!enabled;
+      if (enabled && !Db.find('standard_versions', function (v) { return v.standard_set_id === setId && v.status === 'PUBLISHED'; }).length)
+        throw appError_('VALIDATION', 'ต้องมีฉบับที่ประกาศใช้แล้วอย่างน้อย 1 ฉบับก่อนเปิดใช้ออดิท');
+      var patch = { enabled_for_audit: enabled };
+      if (enabled) patch.name_th = String(set.name_th).replace(/\s*—\s*เตรียมโครงสร้าง$/, '');
+      var saved = Db.update('standard_sets', setId, patch);
+      logAction_(u.id, enabled ? 'ENABLE_STANDARD_FOR_AUDIT' : 'DISABLE_STANDARD_FOR_AUDIT', 'standard_sets', setId, { enabled_for_audit: !!set.enabled_for_audit }, { enabled_for_audit: enabled }, '');
+      return { set: saved };
+    });
+  });
+}
+
+/** Permanently delete a DRAFT version (never a published/retired one, and never one an audit refers to). */
+function apiDeleteDraftVersion(token, versionId) {
+  return guard_(token, function (u) {
+    Permissions.assert(u, 'standard.manage');
+    return Db.transaction(function () {
+      var v = requireDraft_(versionId);
+      if (Db.find('audits', function (a) { return a.standard_version_id === versionId; }).length)
+        throw appError_('IN_USE', 'ลบไม่ได้ เพราะมีรอบตรวจอ้างอิงฉบับนี้อยู่');
+      var routes = Db.find('audit_routes', function (r) { return r.standard_version_id === versionId; });
+      routes.forEach(function (r) {
+        Db.find('route_stops', function (st) { return st.route_id === r.id; }).forEach(function (st) { Db.remove('route_stops', st.id); });
+        Db.remove('audit_routes', r.id);
+      });
+      ['red_line_rules', 'scoring_rules', 'audit_criteria'].forEach(function (t) {
+        Db.find(t, function (x) { return x.standard_version_id === versionId; }).forEach(function (x) { Db.remove(t, x.id); });
+      });
+      Db.remove('standard_versions', versionId);
+      logAction_(u.id, 'DELETE_DRAFT_STANDARD', 'standard_versions', versionId, { version_label: v.version_label, source_sheet_name: v.source_sheet_name }, null, '');
+      return { deleted: versionId };
+    });
+  });
+}
+
 /** Save a route's stops (does not affect scores). Every criterion must appear in at least one stop. */
 function apiSaveRoute(token, routeId, stops, name) {
   return guard_(token, function (u) {
