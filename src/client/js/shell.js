@@ -38,6 +38,7 @@
     trash: '<path d="M9 3h6l1 1h4v2H4V4h4zm-3 5h12l-1 13H7z"/>',
     link: '<path d="M10.6 13.4a1 1 0 0 0 1.4 0l4-4a3 3 0 0 0-4.2-4.2l-1 1 1.4 1.4 1-1a1 1 0 0 1 1.4 1.4l-4 4a1 1 0 0 0 0 1.4zm2.8-2.8a1 1 0 0 0-1.4 0l-4 4a3 3 0 0 0 4.2 4.2l1-1-1.4-1.4-1 1a1 1 0 0 1-1.4-1.4l4-4a1 1 0 0 0 0-1.4z"/>',
     filter: '<path d="M3 5h18l-7 8v6l-4 2v-8z"/>',
+    image: '<path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm0 2v9.6l4-4 3.5 3.5 2.5-2.5 6 6V6zm11.5 1.5a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/>',
     eye: '<path d="M12 5c5 0 9 4.5 10 7-1 2.5-5 7-10 7S3 14.5 2 12c1-2.5 5-7 10-7zm0 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/>'
   };
   App.icon = function (name, cls) { return '<svg class="ic ' + (cls || '') + '" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' + (ICONS[name] || ICONS.dot) + '</svg>'; };
@@ -46,6 +47,7 @@
     { href: '#/', key: '/', icon: 'dashboard', label: 'ภาพรวม' },
     { href: '#/audits', key: '/audit', icon: 'audit', label: 'รอบตรวจ' },
     { href: '#/issues', key: '/issue', icon: 'issue', label: 'ปัญหา' },
+    { href: '#/issuecard', key: '/issuecard', icon: 'image', label: 'ภาพระบุปัญหา', audit: true },
     { href: '#/standards', key: '/standard', icon: 'book', label: 'มาตรฐาน' },
     { href: '#/settings', key: '/settings', icon: 'gear', label: 'ตั้งค่า', admin: true }
   ];
@@ -62,7 +64,7 @@
     var key = activeKey(path);
     if (!App.$('#main')) {
       var u = App.state.user;
-      var items = NAV.filter(function (n) { return !n.admin || App.can('admin'); });
+      var items = NAV.filter(function (n) { return (!n.admin || App.can('admin')) && (!n.audit || App.can('audit')); });
       var navHtml = items.map(function (n) { return '<a class="nav-link" data-key="' + n.key + '" href="' + n.href + '">' + App.icon(n.icon) + '<span>' + n.label + '</span></a>'; }).join('');
       var mobileMain = items.slice(0, 3);
       App.$('#app').innerHTML =
