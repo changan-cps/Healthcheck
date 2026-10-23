@@ -2499,7 +2499,7 @@ function doGet(e) {
   return out;
 }
 
-var APP_ICON_URL = 'https://changan-cps.github.io/Healthcheck/docs/icons/icon-192.png';
+var APP_ICON_URL = 'https://changan-cps.github.io/Healthcheck/docs/icons/icon-192.png?v=2';
 
 /** HTML partial include for templates. */
 function include(name) { return HtmlService.createHtmlOutputFromFile(name).getContent(); }
