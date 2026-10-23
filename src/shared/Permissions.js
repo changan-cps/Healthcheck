@@ -37,6 +37,8 @@ var Permissions = (function () {
     switch (action) {
       case 'standard.manage': case 'user.manage': case 'settings.manage': case 'exemption.approve': case 'master.manage':
         return admin;
+      case 'issuecard.compose':
+        return admin || auditor;
       case 'standard.view': case 'dashboard.view':
         return admin || auditor || owner || viewer;
       case 'audit.create':
